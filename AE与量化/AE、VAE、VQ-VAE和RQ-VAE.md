@@ -1,6 +1,7 @@
 VQ-VAE 和 RQ-VAE 中的 **VAE** 是 **Variational Autoencoder（变分自编码器）** 的缩写，它是一种结合了生成模型和概率理论的深度学习架构。以下是详细解释：
 
 **VAE优秀解读**：https://zhuanlan.zhihu.com/p/628604566
+**重参数化**：https://zhuanlan.zhihu.com/p/628311865
 
 ### **一、VAE 的核心概念**
 1. **定义**  
