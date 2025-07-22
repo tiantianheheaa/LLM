@@ -53,3 +53,99 @@ L_{\text{commit}} = \beta \sum_{d=1}^D \| z - \text{sg}[e(k_d)] \|^2
 - **减少码本大小**：承诺损失通过稳定训练，允许 RQ-VAE 使用更小的码本（如 \( K=1024 \)）实现高质量生成，而传统 VQ-VAE 可能需要更大的码本（如 \( K=8192 \)）。
 - **提升生成效率**：在图像生成任务中，承诺损失有助于 RQ-VAE 生成更短的离散序列（如从 \( 16 \times 16 \) 降至 \( 8 \times 8 \)），显著降低后续自回归模型（如 Transformer）的计算成本。
 - **增强语义对齐**：在推荐系统等任务中，承诺损失可帮助 RQ-VAE 学习到与任务对齐的语义表示（如物品索引），提升推荐准确性。
+
+
+--- 
+**具体代码**
+这段代码计算的是 **查询向量（query）** 和 **值向量（value）** 之间的 **均方误差（MSE, Mean Squared Error）**，但通过 `.detach()` 操作切断了梯度回传到 `query` 的路径。以下是逐部分详细解析：
+
+---
+
+### **代码分解**
+```python
+emb_loss = ((query.detach() - value) ** 2).sum(axis=-1)
+```
+
+#### **1. 输入张量**
+- `query` 和 `value` 是两个多维张量（通常是神经网络中的嵌入向量），形状可能为 `(batch_size, seq_len, embed_dim)` 或 `(batch_size, embed_dim)`。
+- 假设形状为 `(..., embed_dim)`，即最后一维是嵌入维度。
+
+#### **2. `.detach()` 的作用**
+- `query.detach()` 会从计算图中分离 `query`，返回一个**不需要梯度**的新张量。
+- **目的**：在计算损失时，仅让 `value` 的梯度回传（优化 `value`），而 `query` 被视为常数。这常见于：
+  - **对比学习**：`query` 是固定的锚点（anchor），`value` 是正/负样本。
+  - **教师-学生模型**：`query` 来自教师模型（固定），`value` 来自学生模型（需优化）。
+
+#### **3. 向量差值 `(query.detach() - value)`**
+- 计算 `query` 和 `value` 的逐元素差值，结果形状与输入相同（`(..., embed_dim)`）。
+- 例如，若 `embed_dim=512`，则对每个维度计算差值。
+
+#### **4. 平方操作 `** 2`**
+- 对差值逐元素平方，将负差转为正，并放大较大误差的影响（MSE 的特性）。
+
+#### **5. 沿最后一维求和 `.sum(axis=-1)`**
+- 对嵌入维度（`embed_dim`）求和，将每个向量的误差压缩为标量。
+- 例如，形状从 `(batch_size, seq_len, embed_dim)` 变为 `(batch_size, seq_len)`。
+
+---
+
+### **数学形式**
+若 `query` 和 `value` 是形状为 `(N, D)` 的矩阵（`N` 是样本数，`D` 是嵌入维度），则损失计算为：
+\[
+\text{emb\_loss}_i = \sum_{j=1}^D \left( \text{query}_{i,j} - \text{value}_{i,j} \right)^2
+\]
+其中 \( i \) 是样本索引，\( j \) 是嵌入维度索引。
+
+---
+
+### **典型应用场景**
+1. **对比学习（Contrastive Learning）**  
+   - `query` 是锚点样本的嵌入，`value` 是正样本或负样本的嵌入。
+   - 通过损失拉近 `query` 和正样本的距离，推开负样本。
+
+2. **知识蒸馏（Knowledge Distillation）**  
+   - `query` 来自教师模型（固定），`value` 来自学生模型（需优化）。
+   - 最小化两者嵌入的差异。
+
+3. **自编码器或嵌入对齐**  
+   - 强制 `value` 学习与 `query` 相似的表示。
+
+---
+
+### **注意事项**
+1. **梯度流动**  
+   - 由于 `query.detach()`，梯度不会更新 `query`，仅优化 `value`。若需双向优化，需移除 `.detach()`。
+
+2. **数值稳定性**  
+   - 若嵌入维度较大（如 `D=768`），直接求和可能导致数值过大。可考虑均值（`.mean(axis=-1)`）或加权求和。
+
+3. **扩展性**  
+   - 若需计算批量中所有样本对的误差（如 InfoNCE 损失），需结合矩阵乘法或循环。
+
+---
+
+### **代码变体示例**
+#### **(1) 计算均值损失（替代求和）**
+```python
+emb_loss = ((query.detach() - value) ** 2).mean(axis=-1)  # 平均误差
+```
+
+#### **(2) 双向优化（移除 .detach()）**
+```python
+emb_loss = ((query - value) ** 2).sum(axis=-1)  # 同时优化 query 和 value
+```
+
+#### **(3) 带温度系数的对比损失**
+```python
+temperature = 0.1
+logits = (query @ value.T) / temperature  # 相似度矩阵
+labels = torch.arange(len(query))  # 对角线为正样本
+loss = F.cross_entropy(logits, labels)
+```
+
+---
+
+### **总结**
+- **功能**：计算 `query` 和 `value` 嵌入向量的均方误差，仅优化 `value`。
+- **关键点**：`.detach()` 切断梯度，`sum(axis=-1)` 压缩维度。
+- **应用**：对比学习、知识蒸馏、嵌入对齐等任务。
