@@ -11,6 +11,9 @@ L_{\text{commit}} = \beta \sum_{d=1}^D \| z - \text{sg}[e(k_d)] \|^2
 - \( \text{sg}[\cdot] \) 表示**停止梯度（Stop Gradient）**操作，即阻止梯度通过量化过程反向传播到码本，仅更新编码器参数。
 - \( \beta \) 是超参数，用于平衡承诺损失与重建损失的权重（通常设为较小值，如 \( 0.25 \)）。
 
+  <img width="1528" height="578" alt="image" src="https://github.com/user-attachments/assets/81984b3c-0114-46bc-ba49-0ad000a9ea08" />
+
+
 ### **2. 承诺损失在 RQ-VAE 中的作用**
 #### **(1) 防止码本崩溃（Codebook Collapse）**
 - **问题**：在传统 VQ-VAE 中，若编码器输出过于集中，可能导致少数码本向量被频繁使用，而其他向量未被充分利用（码本崩溃）。
@@ -31,6 +34,9 @@ L_{\text{commit}} = \beta \sum_{d=1}^D \| z - \text{sg}[e(k_d)] \|^2
 | **承诺损失**       | 约束编码器输出接近码本向量，防止码本崩溃。                               | 编码器参数         | \( \| z - \text{sg}[e(k_d)] \|^2 \) |
 | **量化损失**       | 更新码本向量，使其接近编码器输出的残差。                                 | 码本参数           | \( \| \text{sg}[z] - e(k_d) \|^2 \) |
 
+
+<img width="1422" height="410" alt="image" src="https://github.com/user-attachments/assets/5b8ff6ef-21ff-427a-9344-fe72cf6d0bf8" />
+
 ### **4. RQ-VAE 中的特殊设计**
 - **残差量化（Residual Quantization）**：RQ-VAE 通过多级量化（如 \( D \) 层）逐层逼近特征向量，每层量化一个残差 \( r_d \)，并生成对应的码字 \( k_d \)。
 - **承诺损失的分层应用**：在每一层量化中，承诺损失均会计算编码器输出与当前层码本向量的距离，确保每一级的量化误差逐步减小。
@@ -39,6 +45,9 @@ L_{\text{commit}} = \beta \sum_{d=1}^D \| z - \text{sg}[e(k_d)] \|^2
   L_{\text{total}} = L_{\text{recon}} + L_{\text{quant}} = \| x - \hat{x} \|^2 + \sum_{d=1}^D \left( \| z - \text{sg}[e(k_d)] \|^2 + \beta \| \text{sg}[z] - e(k_d) \|^2 \right)
   \]
   其中 \( L_{\text{recon}} \) 是重建损失，\( L_{\text{quant}} \) 是量化损失（包含承诺损失部分）。
+
+  <img width="1416" height="252" alt="image" src="https://github.com/user-attachments/assets/5f1eac2c-7e3d-46e3-9859-00ed935fb77c" />
+
 
 ### **5. 实际应用中的效果**
 - **减少码本大小**：承诺损失通过稳定训练，允许 RQ-VAE 使用更小的码本（如 \( K=1024 \)）实现高质量生成，而传统 VQ-VAE 可能需要更大的码本（如 \( K=8192 \)）。
