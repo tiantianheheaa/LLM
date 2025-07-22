@@ -275,3 +275,106 @@ optimizer.zero_grad()
 | `accelerator.backward()` | 自动梯度计算 + 混合精度 | 1. 分布式梯度聚合<br>2. 梯度缩放（FP16/BF16）<br>3. 梯度累积兼容 |
 
 通过这两个方法，`Accelerate` 极大地简化了分布式训练的代码复杂度，用户无需手动处理设备分配、梯度同步或混合精度逻辑，只需专注于模型定义和训练逻辑。
+
+
+
+
+--- 
+
+在**分布式训练**（如使用 **Hugging Face Accelerate**、**PyTorch DistributedDataParallel (DDP)** 或 **Deepspeed**）时，`accelerator.is_main_process` 是一个**布尔值属性**，用于判断当前进程是否是**主进程**（通常是 `rank=0` 的进程）。这在需要**仅由主进程执行某些操作**（如日志记录、模型保存、数据下载等）的场景中非常有用，以避免多进程重复执行相同任务。
+
+---
+
+### **1. 作用**
+- **避免重复操作**：确保某些代码（如日志、模型保存、数据下载）仅由主进程执行一次。
+- **同步控制**：在分布式训练中协调多个进程的行为。
+
+---
+
+### **2. 典型用法**
+#### **示例 1：仅主进程保存模型**
+```python
+from accelerate import Accelerator
+
+accelerator = Accelerator()
+
+# 训练循环...
+if accelerator.is_main_process:
+    torch.save(model.state_dict(), "model.pt")  # 只有主进程保存模型
+```
+
+#### **示例 2：仅主进程打印日志**
+```python
+if accelerator.is_main_process:
+    print("Training started!")  # 避免每个进程都打印日志
+```
+
+#### **示例 3：初始化时下载数据（避免多进程竞争）**
+```python
+if accelerator.is_main_process:
+    download_dataset()  # 只有主进程下载数据
+accelerator.wait_for_everyone()  # 等待所有进程同步
+```
+
+---
+
+### **3. 底层原理**
+- 在分布式训练中，每个进程有一个唯一的 `rank`（从 `0` 开始编号）。
+- `accelerator.is_main_process` 通常等价于 `accelerator.process_index == 0`。
+- 在非分布式环境（单进程）下，该值始终为 `True`。
+
+---
+
+### **4. 对比其他框架**
+| 框架/库                | 等效属性/方法                     |
+|------------------------|----------------------------------|
+| **Hugging Face Accelerate** | `accelerator.is_main_process`    |
+| **PyTorch DDP**        | `torch.distributed.get_rank() == 0` |
+| **Deepspeed**          | `deepspeed.utils.is_rank_zero()` |
+| **Horovod**            | `hvd.rank() == 0`                |
+
+---
+
+### **5. 注意事项**
+1. **同步操作**：如果主进程执行了某些操作（如保存模型），其他进程可能需要通过 `accelerator.wait_for_everyone()` 同步。
+2. **非分布式环境**：在单卡训练时，`is_main_process` 始终为 `True`，无需额外处理。
+3. **调试**：在分布式模式下调试时，可以临时禁用 `is_main_process` 检查，让所有进程打印日志。
+
+---
+
+### **6. 完整代码示例**
+```python
+from accelerate import Accelerator
+import torch
+
+accelerator = Accelerator()
+
+# 模拟数据
+dataset = [torch.randn(10) for _ in range(100)]
+dataloader = accelerator.prepare_data_loader([dataset], batch_size=4)
+
+# 训练循环
+for epoch in range(5):
+    for batch in dataloader:
+        # 训练步骤...
+        outputs = model(batch)
+        loss = compute_loss(outputs)
+        accelerator.backward(loss)
+        optimizer.step()
+        optimizer.zero_grad()
+
+    # 仅主进程打印日志
+    if accelerator.is_main_process:
+        print(f"Epoch {epoch}, Loss: {loss.item()}")
+
+# 仅主进程保存模型
+if accelerator.is_main_process:
+    accelerator.save_state("checkpoint.pt")
+```
+
+---
+
+### **总结**
+- **`accelerator.is_main_process`** 是分布式训练中控制进程行为的实用工具。
+- **核心用途**：避免重复操作、日志管理、模型保存。
+- **兼容性**：在非分布式环境下自动适配，无需修改代码。
