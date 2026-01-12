@@ -9,3 +9,7 @@
 - datawhale相关的LLM课程
   - 《动手学大模型》
   - 《Happy-LLM》
+
+## 考点
+1. 手撕Transformer代码
+2. LLM 八股考察点
