@@ -2,7 +2,7 @@
 - qwen3-0.6B模型 为什么以下这几个数据对不上？ 下面这几个数据不应该是相同的吗？
 - tokenizer.vocab_size是151643
 - len(tokenizer)=151669，是**基础词汇表大小 + qwen3自带的26个special token**
-- model.get_input_embeddings().weight.shape[0]是151936
+- model.get_input_embeddings().weight.shape[0]是151936，模型的emb tabel size >= 词汇表大小即可，多的部分可以不查不用
 - 最大词汇表id是151668，说明是从id是从0开始的
 - **add_new_token是从151669开始的**
 
