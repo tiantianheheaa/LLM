@@ -9,7 +9,12 @@
 - datawhale相关的LLM课程
   - 《动手学大模型》
   - 《Happy-LLM》
-- HuggingFace的LLM课程：https://huggingface.co/learn/llm-course/zh-CN/chapter1/1
+- HuggingFace的
+  - learn目录下的课程
+    - LLM课程：https://huggingface.co/learn/llm-course/zh-CN/chapter1/1
+  - doc目录下
+    - transformers库：https://huggingface.co/docs/transformers/main/zh/index
+- 上海交大《动手学大模型》：https://github.com/Lordog/dive-into-llms
 
 ## 考点
 1. 手撕Transformer代码
