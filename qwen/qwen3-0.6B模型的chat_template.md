@@ -1,4 +1,4 @@
-- im_start中的im是 instant message的缩写。
+- im_start中的im是 instant message（即时消息）的缩写。
 
 ---
 
